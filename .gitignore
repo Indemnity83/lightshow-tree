@@ -1,0 +1,12 @@
+build/
+*.asm
+*.ihx
+*.lk
+*.lst
+*.map
+*.mem
+*.rel
+*.rst
+*.sym
+*.hex
+tools/stc8prog/
