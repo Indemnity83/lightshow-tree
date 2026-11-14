@@ -24,10 +24,14 @@ ifeq ($(TARGET),receiver)
 SOURCES += src/receiver.c
 CFLAGS += -DFIRMWARE_RECEIVER --opt-code-speed
 endif
+ifeq ($(TARGET),probe)
+SOURCES += src/probe.c src/serial.c
+CFLAGS += -DFIRMWARE_PROBE
+endif
 OBJECTS := $(SOURCES:src/%.c=$(BUILD_DIR)/%.rel)
 FIRMWARE := $(BUILD_DIR)/lightshow-tree
 
-.PHONY: all clean check-toolchain detect flash blank mapper color-test demo receiver flash-blank flash-mapper flash-color-test flash-demo flash-receiver terminal
+.PHONY: all clean check-toolchain detect flash blank mapper color-test demo receiver probe flash-blank flash-mapper flash-color-test flash-demo flash-receiver flash-probe terminal
 
 all: $(FIRMWARE).hex
 
@@ -71,6 +75,9 @@ demo:
 receiver:
 	$(MAKE) TARGET=receiver all
 
+probe:
+	$(MAKE) TARGET=probe all
+
 flash-blank:
 	$(MAKE) TARGET=blank all
 	@test -n "$(PORT)" || (echo "Use: make flash-blank PORT=/dev/cu.usbserial-XXXX"; exit 1)
@@ -95,6 +102,11 @@ flash-receiver:
 	$(MAKE) TARGET=receiver all
 	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX"; exit 1)
 	$(STC8PROG) -p $(PORT) -e -f build/receiver/lightshow-tree.hex
+
+flash-probe:
+	$(MAKE) TARGET=probe all
+	@test -n "$(PORT)" || (echo "Use: make flash-probe PORT=/dev/cu.usbserial-XXXX"; exit 1)
+	$(STC8PROG) -p $(PORT) -e -f build/probe/lightshow-tree.hex
 
 terminal:
 	@test -n "$(PORT)" || (echo "Use: make terminal PORT=/dev/cu.usbserial-XXXX"; exit 1)

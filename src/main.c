@@ -8,6 +8,10 @@
 #include "receiver.h"
 #endif
 
+#ifdef FIRMWARE_PROBE
+#include "probe.h"
+#endif
+
 void main(void) {
     /* First-flash image: every known data line is driven low.  This is an
      * idle WS28xx level, not a timed frame, so it cannot light pixels. */
@@ -18,6 +22,12 @@ void main(void) {
     receiver_init();
     for (;;) {
         receiver_service();
+    }
+#elif defined(FIRMWARE_PROBE)
+    board_init_falcon_input();
+    probe_init();
+    for (;;) {
+        probe_service();
     }
 #elif defined(FIRMWARE_MAPPER) || defined(FIRMWARE_COLOR_TEST) || defined(FIRMWARE_DEMO)
     mapper_init();
