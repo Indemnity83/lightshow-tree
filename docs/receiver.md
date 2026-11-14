@@ -10,7 +10,7 @@ Falcon differential pair
   -> MAX3485 A/B
   -> MAX3485 RO / RXD
   -> STC8H8K64U pin 27 / P3.6
-  -> capture buffer (3,060 RGB bytes)
+  -> capture buffer (1,530 RGB bytes from Falcon port 1)
   -> thirty factory pixel outputs
 ```
 
@@ -21,22 +21,27 @@ confirmed.
 ## First-pass behavior
 
 1. The firmware waits for a WS281x reset/latch interval.
-2. A tight assembly loop captures exactly 1,020 RGB pixels from P3.6.
+2. A tight assembly loop captures exactly 510 RGB pixels from P3.6. These are
+   verticals 1–15; verticals 16–30 are sent black until a second receiver is
+   added on Falcon port 2.
 3. Every component is divided by eight to protect the factory power supply.
 4. It replays 34 pixels to each of the thirty verticals in the proven physical
    clockwise order. The factory star output is untouched.
 
-The input-frame and output-frame phases are sequential. A 1,020-pixel WS281x
-frame is about 31 ms, so this initial implementation is expected to top out
-near 15 frames per second. It is intentionally the simplest timing-safe
-baseline; a later bit-plane parallel-output engine can increase the rate.
+The input-frame and output-frame phases are sequential. A 510-pixel WS281x
+input frame is about 15 ms and the 1,020-pixel replay about 31 ms, so with a
+40 fps Falcon source this initial implementation is expected to replay every
+other frame, near 20 frames per second. It is intentionally the simplest
+timing-safe baseline; a later bit-plane parallel-output engine can increase
+the rate.
 
 ## First hardware test
 
-1. Set one dedicated Falcon output to 1,020 RGB pixels and set a low test
-   brightness in the Falcon configuration as an additional safety limit.
-2. Connect the selected CAT pair to MAX3485 `A` and `B`; wire `VCC`, `GND`, and
-   `RXD` to factory radio pads 4, 7, and 3 respectively.
+1. Set Falcon port 1 to 510 RGB pixels (no null pixels or grouping) and set a
+   low test brightness in the Falcon configuration as an additional safety
+   limit.
+2. Connect Falcon pair 1 (white/orange + orange) to MAX3485 `A` and `B`; wire
+   `VCC`, `GND`, and `RXD` to factory radio pads 4, 7, and 3 respectively.
 3. Flash with:
 
    ```sh

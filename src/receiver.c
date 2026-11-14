@@ -8,8 +8,10 @@ __sbit __at (0xb6) FALCON_INPUT;
 /*
  * Blind first pass for the MAX3485 receiver board.
  *
- * Input:  one RGB WS281x-style stream containing 30 * 34 pixels.
- * Output: the same pixels, replayed one 34-pixel vertical at a time in the
+ * Input:  one RGB WS281x-style stream containing 15 * 34 = 510 pixels
+ *         (Falcon port 1).  A second receiver will later carry verticals
+ *         16-30; until then their half of the buffer stays black.
+ * Output: the whole buffer, replayed one 34-pixel vertical at a time in the
  *         proven clockwise factory-wiring order.
  *
  * This is deliberately a polling receiver. P3.6 is sampled continuously in
@@ -21,6 +23,9 @@ __sbit __at (0xb6) FALCON_INPUT;
 /* The factory 30 V / 1.6 A supply cannot support a full-white 1,020-pixel
  * frame. Clamp every component to 1/8 before replay (~12.5% maximum level). */
 #define BRIGHTNESS_SHIFT 3U
+
+/* Bytes received from Falcon port 1: verticals 1-15. */
+#define CHANNEL_BYTES (TREE_FRAME_BYTES / 2U)
 
 static __xdata unsigned char frame[TREE_FRAME_BYTES];
 static unsigned char first_report;
@@ -39,7 +44,7 @@ static unsigned char first_report;
  */
 static unsigned char capture_frame(void) __naked {
     __asm
-        ; DPTR addresses the 3,060-byte XRAM capture buffer.
+        ; DPTR addresses the first 1,530 bytes of the XRAM capture buffer.
         mov     dptr,#_frame
 
         ; Synchronize to a >50 us low reset/latch period.
@@ -52,8 +57,8 @@ static unsigned char capture_frame(void) __naked {
         djnz    r4,00003$
         djnz    r3,00002$
 
-        ; Store 11 full 256-byte pages, then the remaining 244 bytes.
-        mov     r7,#0x0b
+        ; Store 5 full 256-byte pages, then the remaining 250 bytes.
+        mov     r7,#0x05
 00004$:
         mov     r6,#0x00
 00005$:
@@ -78,7 +83,7 @@ static unsigned char capture_frame(void) __naked {
         djnz    r6,00005$
         djnz    r7,00004$
 
-        mov     r6,#0xf4
+        mov     r6,#0xfa
 00008$:
         mov     a,#0x00
         mov     r5,#0x08
@@ -108,7 +113,7 @@ static unsigned char capture_frame(void) __naked {
 static void limit_brightness(void) {
     unsigned int index;
 
-    for (index = 0U; index != TREE_FRAME_BYTES; ++index)
+    for (index = 0U; index != CHANNEL_BYTES; ++index)
         frame[index] >>= BRIGHTNESS_SHIFT;
 }
 
@@ -126,7 +131,7 @@ void receiver_init(void) {
     first_report = 1U;
     serial_init();
     serial_puts("lightshow-tree Falcon receiver\r\n");
-    serial_puts("input: P3.6 / MCU pin 27\r\n");
+    serial_puts("input: P3.6 / MCU pin 27, 510 pixels\r\n");
     serial_puts("brightness: 1/8\r\n");
 }
 

@@ -55,9 +55,10 @@ base-mounted RJ45 breakout modules, wiring, and Falcon pair selection.
 ## Falcon receiver bring-up
 
 `make receiver` builds the first RS-485 receiver firmware. It samples the
-MAX3485 `RO` signal on STC pin 27 / P3.6, captures one 1,020-pixel RGB frame,
-limits every component to 1/8 brightness, and replays the frame to the 30
-verticals in their confirmed clockwise order.
+MAX3485 `RO` signal on STC pin 27 / P3.6, captures one 510-pixel RGB frame for
+verticals 1–15 (Falcon port 1), limits every component to 1/8 brightness, and
+replays the frame in the confirmed clockwise order. Verticals 16–30 are sent
+black until a second receiver is added.
 
 Flash it only with the MAX3485 configured receive-only (`T` open and `EN` low
 or open). The first valid capture emits `frame: captured and replayed` on the
