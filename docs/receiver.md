@@ -60,8 +60,9 @@ the rate.
 ## Timing tuning
 
 The capture loop distinguishes a WS281x zero from a one by sampling P3.6 after
-the rising edge and before a normal zero pulse has ended. The loop currently
-contains seven explicitly visible `nop` instructions in each sampling site in
+the rising edge, after a zero pulse has ended but before a one pulse has. With
+seven `nop`s every bit read as a one (dim white). The loop currently
+contains twelve explicitly visible `nop` instructions in each sampling site in
 `src/receiver.c`.
 
 That count is a first estimate for the 32 MHz MCU clock and must be verified on

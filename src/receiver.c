@@ -34,8 +34,9 @@ static unsigned char first_report;
  * Capture an entire frame with no C code in the bit loop.
  *
  * At 32 MHz, a WS281x zero high is roughly 11 clocks and a one high roughly
- * 22 clocks. After detecting a rising edge, seven NOPs put the direct P3.6
- * sample between those two widths. A zero has fallen; a one remains high.
+ * 22 clocks. After detecting a rising edge, twelve NOPs put the direct P3.6
+ * sample near the middle of those two widths. A zero has fallen; a one
+ * remains high.  (Seven NOPs sampled too early: every bit read as a one.)
  *
  * The outer reset detector requires three complete 256-sample low passes, so
  * it cannot mistake an ordinary inter-bit low interval for a latch/reset.
@@ -73,6 +74,11 @@ static unsigned char capture_frame(void) __naked {
         nop
         nop
         nop
+        nop
+        nop
+        nop
+        nop
+        nop
         mov     c,_FALCON_INPUT
         rlc     a
 00007$:
@@ -89,6 +95,11 @@ static unsigned char capture_frame(void) __naked {
         mov     r5,#0x08
 00009$:
         jnb     _FALCON_INPUT,00009$
+        nop
+        nop
+        nop
+        nop
+        nop
         nop
         nop
         nop
