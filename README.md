@@ -36,6 +36,7 @@ Once both are installed:
 make
 make blank
 make mapper
+make receiver
 make check-toolchain
 make detect PORT=/dev/cu.usbserial-XXXX
 make terminal PORT=/dev/cu.usbserial-XXXX
@@ -47,3 +48,18 @@ Exit the serial terminal with `Ctrl-A`, then `\\`.
 The local `tools/stc8prog/` checkout is ignored by Git. It is the default
 flashing tool while developing on this Mac; a globally installed copy can be
 selected with `make STC8PROG=stc8prog ...`.
+
+See [the hardware plan](docs/hardware-plan.md) for the selected MAX3485 and
+base-mounted RJ45 breakout modules, wiring, and Falcon pair selection.
+
+## Falcon receiver bring-up
+
+`make receiver` builds the first RS-485 receiver firmware. It samples the
+MAX3485 `RO` signal on STC pin 27 / P3.6, captures one 1,020-pixel RGB frame,
+limits every component to 1/8 brightness, and replays the frame to the 30
+verticals in their confirmed clockwise order.
+
+Flash it only with the MAX3485 configured receive-only (`T` open and `EN` low
+or open). The first valid capture emits `frame: captured and replayed` on the
+UART. See `docs/receiver.md` for the first-hardware-test procedure and the
+single sampling-delay value that may need adjustment.

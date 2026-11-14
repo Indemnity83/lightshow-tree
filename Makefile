@@ -8,7 +8,7 @@ BUILD_DIR := build/$(TARGET)
 SOURCES := src/main.c src/board.c
 CFLAGS := -mmcs51 --model-small --opt-code-size -Iinclude
 
-ifneq (,$(filter $(TARGET),mapper color-test demo))
+ifneq (,$(filter $(TARGET),mapper color-test demo receiver))
 SOURCES += src/mapper.c src/serial.c
 endif
 ifeq ($(TARGET),mapper)
@@ -20,10 +20,14 @@ endif
 ifeq ($(TARGET),demo)
 CFLAGS += -DFIRMWARE_DEMO
 endif
+ifeq ($(TARGET),receiver)
+SOURCES += src/receiver.c
+CFLAGS += -DFIRMWARE_RECEIVER --opt-code-speed
+endif
 OBJECTS := $(SOURCES:src/%.c=$(BUILD_DIR)/%.rel)
 FIRMWARE := $(BUILD_DIR)/lightshow-tree
 
-.PHONY: all clean check-toolchain detect flash blank mapper color-test demo flash-blank flash-mapper flash-color-test flash-demo terminal
+.PHONY: all clean check-toolchain detect flash blank mapper color-test demo receiver flash-blank flash-mapper flash-color-test flash-demo flash-receiver terminal
 
 all: $(FIRMWARE).hex
 
@@ -64,6 +68,9 @@ color-test:
 demo:
 	$(MAKE) TARGET=demo all
 
+receiver:
+	$(MAKE) TARGET=receiver all
+
 flash-blank:
 	$(MAKE) TARGET=blank all
 	@test -n "$(PORT)" || (echo "Use: make flash-blank PORT=/dev/cu.usbserial-XXXX"; exit 1)
@@ -83,6 +90,11 @@ flash-demo:
 	$(MAKE) TARGET=demo all
 	@test -n "$(PORT)" || (echo "Use: make flash-demo PORT=/dev/cu.usbserial-XXXX"; exit 1)
 	$(STC8PROG) -p $(PORT) -e -f build/demo/lightshow-tree.hex
+
+flash-receiver:
+	$(MAKE) TARGET=receiver all
+	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX"; exit 1)
+	$(STC8PROG) -p $(PORT) -e -f build/receiver/lightshow-tree.hex
 
 terminal:
 	@test -n "$(PORT)" || (echo "Use: make terminal PORT=/dev/cu.usbserial-XXXX"; exit 1)

@@ -61,12 +61,27 @@ static const unsigned char output_pin[31] = {
     43,44,45,46,47,48
 };
 
-#if defined(FIRMWARE_COLOR_TEST) || defined(FIRMWARE_DEMO)
 /* Indexes into the 31-channel pulse tables. Index 9 is MCU pin 12 / star. */
 static const unsigned char vertical_index[30] = {
     0,1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,
     26,27,28,29,30
 };
+
+static void send_rgb_pixel(unsigned char red, unsigned char green,
+                           unsigned char blue);
+
+void pixel_send_vertical_frame(unsigned char vertical,
+                               const unsigned char *rgb) {
+    unsigned char pixel;
+
+    selected = vertical_index[vertical];
+    for (pixel = 0U; pixel != TREE_PIXELS_PER_VERTICAL; ++pixel) {
+        send_rgb_pixel(rgb[0], rgb[1], rgb[2]);
+        rgb += 3;
+    }
+}
+
+#if defined(FIRMWARE_COLOR_TEST) || defined(FIRMWARE_DEMO)
 static unsigned char color_index;
 #endif
 

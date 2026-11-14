@@ -10,3 +10,6 @@ build/
 *.sym
 *.hex
 tools/stc8prog/
+
+# KiCad local history
+.history/

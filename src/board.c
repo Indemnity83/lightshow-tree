@@ -51,6 +51,13 @@ void board_init_pixel_idle(void) {
     P3 |= BUTTON_MASK;
 }
 
+void board_init_falcon_input(void) {
+    /* P3.6 / physical MCU pin 27.  The MAX3485 actively drives this signal,
+     * so use a high-impedance input with no weak pull-up. */
+    P3M1 |= FALCON_INPUT_MASK;
+    P3M0 &= (unsigned char)~FALCON_INPUT_MASK;
+}
+
 unsigned char board_button_pressed(void) {
     return (P3 & BUTTON_MASK) == 0U;
 }

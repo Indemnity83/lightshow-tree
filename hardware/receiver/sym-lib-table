@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "lightshow-tree")(type "KiCad")(uri "${KIPRJMOD}/lightshow-tree.kicad_sym")(options "")(descr "Lightshow Tree project-local symbols"))
+)
