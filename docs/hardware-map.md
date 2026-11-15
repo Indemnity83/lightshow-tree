@@ -51,7 +51,7 @@ alternate peripheral labels are MCU capabilities, not proof of board use.
 | 25 | P5.1 | NC (no board connection) |
 | 26 | P3.5 | Factory physical-button input through Q5 (`J3Y`) |
 | 27 | P3.6 | PAN2110 radio pin 3, `SDA/DATA`; now MAX3485 channel 1 `RXD` input |
-| 28 | P3.7 | PAN2110 radio pin 2, `SCL/SCK`; reads constantly low with the radio removed, unused |
+| 28 | P3.7 | PAN2110 radio pin 2, `SCL/SCK`; spare (floating with the radio removed) |
 | 29 | P4.1 | PAN2110 radio pin 1, `CSN`; now MAX3485 channel 2 `RXD` input |
 | 30 | P4.2 | Confirmed pixel-data output through a 100-ohm resistor |
 | 31 | P4.3 | Confirmed pixel-data output through a 100-ohm resistor |
@@ -144,7 +144,6 @@ The unnamed pads are numbered from the MCU outward.
 
 ## Open items
 
-- Find what holds radio pad 2 / P3.7 low.
 - Margin-test the receiver sample point (see `docs/receiver.md`).
 - Validate the second receiver channel on radio pad 1 / P4.1.
 

@@ -79,8 +79,10 @@ Leave `TXD` unconnected. On the purchased breakout it was observed to carry a
 copy of the received data, so a `TXD` wire to the tree board would put one
 channel's data on another pad.
 
-Former radio pad 2 (STC pin 28 / P3.7) is not used: the input probe read it
-as constantly low, so something on the factory board may hold it down.
+Former radio pad 2 (STC pin 28 / P3.7) is a spare. The input probe read it as
+constantly low, but nothing is visible on the trace and the firmware leaves it
+in the STC8H's reset-default high-impedance mode, so it is most likely just
+floating.
 
 The CAT-side ground terminal is not used. The MAX3485s receive their local
 power and ground from the factory board, while the Cat5/6 cable carries only

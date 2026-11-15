@@ -20,7 +20,7 @@ replacement firmware can repurpose any one of them as a receiver-data GPIO:
 | STC pin | Radio pin | Factory-radio function | Daughterboard use |
 | --- | --- | --- | --- |
 | 27 | 3 | data/SDA | channel 1 receiver data |
-| 28 | 2 | clock/SCL | unused; reads constantly low with the radio removed |
+| 28 | 2 | clock/SCL | spare GPIO |
 | 29 | 1 | chip select | channel 2 receiver data |
 
 In addition, the radio footprint exposes its local 3.3 V and ground pads.  The
