@@ -3,30 +3,34 @@
 #include "receiver.h"
 #include "serial.h"
 
-__sbit __at (0xb6) FALCON_INPUT;
+__sbit __at (0xb6) FALCON_INPUT1;
+__sbit __at (0xc1) FALCON_INPUT2;
 
 /*
- * Blind first pass for the MAX3485 receiver board.
+ * Two-channel receiver for the MAX3485 boards.
  *
- * Input:  one RGB WS281x-style stream containing 15 * 34 = 510 pixels
- *         (Falcon port 1).  A second receiver will later carry verticals
- *         16-30; until then their half of the buffer stays black.
- * Output: the whole buffer, replayed one 34-pixel vertical at a time in the
+ * Input:  two RGB WS281x-style streams, each 15 * 34 = 510 pixels.
+ *         Channel 1 (radio pad 3 / P3.6) carries verticals 1-15.
+ *         Channel 2 (radio pad 1 / P4.1) carries verticals 16-30.
+ * Output: all 30 verticals, replayed one 34-pixel vertical at a time in the
  *         proven clockwise factory-wiring order.
  *
- * This is deliberately a polling receiver. P3.6 is sampled continuously in
- * a small assembly loop while a frame is present so UART activity cannot
- * disturb WS281x timing.
- * The MAX3485 delivers the Falcon pair at 3.3 V to P3.6.
+ * This is deliberately a polling receiver. Both inputs are sampled in a small
+ * assembly loop while a frame is present so UART activity cannot disturb
+ * WS281x timing.  Bit timing comes from channel 1 alone: the Falcon clocks
+ * its ports out together, so channel 2 is sampled at the same moment.
  */
 
 /* The factory 30 V / 1.6 A supply cannot support a full-white 1,020-pixel
  * frame. Clamp every component to 1/8 before replay (~12.5% maximum level). */
 #define BRIGHTNESS_SHIFT 3U
 
-/* Bytes received from Falcon port 1: verticals 1-15. */
+/* Bytes received on each channel: 15 verticals. */
 #define CHANNEL_BYTES (TREE_FRAME_BYTES / 2U)
 
+/* Raw capture, channel bytes interleaved: ch1, ch2, ch1, ch2, ... */
+static __xdata unsigned char capture[TREE_FRAME_BYTES];
+/* Replay order: channel 1's 1,530 bytes, then channel 2's. */
 static __xdata unsigned char frame[TREE_FRAME_BYTES];
 static unsigned char first_report;
 
@@ -34,9 +38,15 @@ static unsigned char first_report;
  * Capture an entire frame with no C code in the bit loop.
  *
  * At 32 MHz, a WS281x zero high is roughly 11 clocks and a one high roughly
- * 22 clocks. After detecting a rising edge, twelve NOPs put the direct P3.6
- * sample near the middle of those two widths. A zero has fallen; a one
- * remains high.  (Seven NOPs sampled too early: every bit read as a one.)
+ * 22 clocks, in a 40-clock bit. After detecting a channel 1 rising edge,
+ * twelve NOPs put the P3.6 sample near the middle of those two widths; P4.1
+ * is sampled two clocks later. A zero has fallen; a one remains high.
+ * (Seven NOPs sampled too early: every bit read as a one.)
+ *
+ * The byte store runs straight after the eighth sample, while the loop would
+ * otherwise only be waiting for the falling edge, so it finishes before the
+ * next bit's rising edge. 1,530 byte pairs are exactly 6 * 255, so the only
+ * extra work is a counter reload every 255 pairs.
  *
  * The outer reset detector requires three complete 256-sample low passes, so
  * it cannot mistake an ordinary inter-bit low interval for a latch/reset.
@@ -45,28 +55,28 @@ static unsigned char first_report;
  */
 static unsigned char capture_frame(void) __naked {
     __asm
-        ; DPTR addresses the first 1,530 bytes of the XRAM capture buffer.
-        mov     dptr,#_frame
+        ; DPTR addresses the interleaved 3,060-byte XRAM capture buffer.
+        mov     dptr,#_capture
 
-        ; Synchronize to a >50 us low reset/latch period.
+        ; Synchronize to a >50 us low reset/latch period on channel 1.
 00001$:
         mov     r3,#0x03
 00002$:
         mov     r4,#0x00
 00003$:
-        jb      _FALCON_INPUT,00001$
+        jb      _FALCON_INPUT1,00001$
         djnz    r4,00003$
         djnz    r3,00002$
 
-        ; Store 5 full 256-byte pages, then the remaining 250 bytes.
-        mov     r7,#0x05
+        ; r7 pages of r6 byte pairs; r5 bits per byte.
+        ; a collects channel 1, r2 collects channel 2.
+        mov     r7,#0x06
+        mov     r6,#0xff
+        mov     r5,#0x08
 00004$:
-        mov     r6,#0x00
+        jb      _FALCON_INPUT1,00004$
 00005$:
-        mov     a,#0x00
-        mov     r5,#0x08
-00006$:
-        jnb     _FALCON_INPUT,00006$
+        jnb     _FALCON_INPUT1,00005$
         nop
         nop
         nop
@@ -79,53 +89,41 @@ static unsigned char capture_frame(void) __naked {
         nop
         nop
         nop
-        mov     c,_FALCON_INPUT
+        mov     c,_FALCON_INPUT1
         rlc     a
-00007$:
-        jb      _FALCON_INPUT,00007$
-        djnz    r5,00006$
-        movx    @dptr,a
-        inc     dptr
-        djnz    r6,00005$
-        djnz    r7,00004$
+        mov     c,_FALCON_INPUT2
+        xch     a,r2
+        rlc     a
+        xch     a,r2
+        djnz    r5,00004$
 
-        mov     r6,#0xfa
-00008$:
-        mov     a,#0x00
-        mov     r5,#0x08
-00009$:
-        jnb     _FALCON_INPUT,00009$
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        mov     c,_FALCON_INPUT
-        rlc     a
-00010$:
-        jb      _FALCON_INPUT,00010$
-        djnz    r5,00009$
         movx    @dptr,a
         inc     dptr
-        djnz    r6,00008$
+        xch     a,r2
+        movx    @dptr,a
+        inc     dptr
+        mov     r5,#0x08
+        djnz    r6,00004$
+        mov     r6,#0xff
+        djnz    r7,00004$
 
         mov     dpl,#0x01
         ret
     __endasm;
 }
 
-static void limit_brightness(void) {
-    unsigned int index;
+/* Split the interleaved capture into replay order, applying the brightness
+ * limit on the way. */
+static void unpack_frame(void) {
+    const __xdata unsigned char *source = capture;
+    __xdata unsigned char *channel1 = frame;
+    __xdata unsigned char *channel2 = frame + CHANNEL_BYTES;
+    unsigned int count;
 
-    for (index = 0U; index != CHANNEL_BYTES; ++index)
-        frame[index] >>= BRIGHTNESS_SHIFT;
+    for (count = CHANNEL_BYTES; count != 0U; --count) {
+        *channel1++ = *source++ >> BRIGHTNESS_SHIFT;
+        *channel2++ = *source++ >> BRIGHTNESS_SHIFT;
+    }
 }
 
 static void replay_frame(void) {
@@ -142,14 +140,15 @@ void receiver_init(void) {
     first_report = 1U;
     serial_init();
     serial_puts("lightshow-tree Falcon receiver\r\n");
-    serial_puts("input: P3.6 / MCU pin 27, 510 pixels\r\n");
+    serial_puts("ch1: P3.6 / MCU pin 27, verticals 1-15\r\n");
+    serial_puts("ch2: P4.1 / MCU pin 29, verticals 16-30\r\n");
     serial_puts("brightness: 1/8\r\n");
 }
 
 void receiver_service(void) {
     if (!capture_frame()) return;
 
-    limit_brightness();
+    unpack_frame();
     replay_frame();
 
     /* One report confirms the frame path without flooding the UART. */

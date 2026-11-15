@@ -52,10 +52,12 @@ void board_init_pixel_idle(void) {
 }
 
 void board_init_falcon_input(void) {
-    /* P3.6 / physical MCU pin 27.  The MAX3485 actively drives this signal,
-     * so use a high-impedance input with no weak pull-up. */
-    P3M1 |= FALCON_INPUT_MASK;
-    P3M0 &= (unsigned char)~FALCON_INPUT_MASK;
+    /* P3.6 / MCU pin 27 and P4.1 / MCU pin 29.  The MAX3485s actively drive
+     * these signals, so use high-impedance inputs with no weak pull-up. */
+    P3M1 |= FALCON_INPUT1_MASK;
+    P3M0 &= (unsigned char)~FALCON_INPUT1_MASK;
+    P4M1 |= FALCON_INPUT2_MASK;
+    P4M0 &= (unsigned char)~FALCON_INPUT2_MASK;
 }
 
 unsigned char board_button_pressed(void) {

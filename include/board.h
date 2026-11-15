@@ -10,9 +10,10 @@
 #define TREE_PIXEL_COUNT (TREE_VERTICAL_COUNT * TREE_PIXELS_PER_VERTICAL)
 #define TREE_FRAME_BYTES (TREE_PIXEL_COUNT * 3U)
 
-/* MCU pin 27 / P3.6 is the former radio DATA pad.  It is repurposed as the
- * logic output from the MAX3485 differential receiver. */
-#define FALCON_INPUT_MASK 0x40U
+/* Former radio pads, repurposed as MAX3485 receiver outputs:
+ * channel 1 on pad 3 (MCU pin 27 / P3.6), channel 2 on pad 1 (pin 29 / P4.1). */
+#define FALCON_INPUT1_MASK 0x40U
+#define FALCON_INPUT2_MASK 0x02U
 
 /* All 31 physical pixel data pins, arranged by MCU port bit. */
 #define PIXEL_P0_MASK 0xffU

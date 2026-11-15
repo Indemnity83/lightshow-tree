@@ -4,16 +4,24 @@ Firmware and hardware notes for adapting a Member's Mark Pre-Lit Multicolor
 Lightshow Tree to a Falcon differential output.
 
 The first target retains the tree's factory power board, connector harness, and
-30 vertical WS28xx data paths. One Falcon differential pixel stream carries the
-1,020 vertical pixels; a small on-board RS-485 receiver converts it to the STC
-MCU's 3.3 V input level.
+30 vertical WS28xx data paths. Two Falcon differential pixel outputs carry the
+1,020 vertical pixels, 510 each; two small on-board RS-485 receivers convert
+them to the STC MCU's 3.3 V input level.
 
 ## Status
 
-Hardware reverse engineering is in progress. The initial `blank` firmware drives
-the 31 confirmed pixel-data pins low (the WS28xx idle level), without emitting a
-timed pixel frame or changing the factory power hardware. It exists to establish
-a repeatable SDCC build and STC UART-ISP workflow before output timing is added.
+The pixel-output mapping is confirmed, and the receiver firmware has decoded a
+Falcon RGB test pattern end to end on channel 1 (verticals 1–15). The
+two-channel firmware is built; channel 2 (verticals 16–30) is not yet wired.
+
+| Target | Purpose |
+| --- | --- |
+| `blank` | Drives all 31 pixel-data pins low (WS28xx idle); safe first flash |
+| `mapper` | Lights one of the 31 outputs dim red; the button steps to the next |
+| `color-test` | Whole tree dim red, green, or blue; the button cycles the color |
+| `demo` | Red/green/blue spiral bands; the button rotates them |
+| `probe` | Reports activity and polarity on the three former radio pads |
+| `receiver` | Two-channel Falcon receiver |
 
 ## Layout
 
@@ -37,6 +45,7 @@ make
 make blank
 make mapper
 make receiver
+make probe
 make check-toolchain
 make detect PORT=/dev/cu.usbserial-XXXX
 make terminal PORT=/dev/cu.usbserial-XXXX
@@ -54,13 +63,15 @@ base-mounted RJ45 breakout modules, wiring, and Falcon pair selection.
 
 ## Falcon receiver bring-up
 
-`make receiver` builds the first RS-485 receiver firmware. It samples the
-MAX3485 `RO` signal on STC pin 27 / P3.6, captures one 510-pixel RGB frame for
-verticals 1–15 (Falcon port 1), limits every component to 1/8 brightness, and
-replays the frame in the confirmed clockwise order. Verticals 16–30 are sent
-black until a second receiver is added.
+`make receiver` builds the RS-485 receiver firmware. It samples two MAX3485
+`RXD` outputs at once: channel 1 on STC pin 27 / P3.6 (verticals 1–15) and
+channel 2 on STC pin 29 / P4.1 (verticals 16–30). Each channel is one
+510-pixel RGB Falcon output; this tree uses Falcon ports 29 and 30. The
+firmware limits every component to 1/8 brightness and replays the frame in the
+confirmed clockwise order.
 
-Flash it only with the MAX3485 configured receive-only (`T` open and `EN` low
-or open). The first valid capture emits `frame: captured and replayed` on the
-UART. See `docs/receiver.md` for the first-hardware-test procedure and the
-single sampling-delay value that may need adjustment.
+Flash it only with each MAX3485 configured receive-only (`T` open, `EN` low or
+open, `TXD` unconnected). Use `make flash-probe` first to confirm each pad
+sees its own correctly polarized signal. The first valid capture emits
+`frame: captured and replayed` on the UART. See `docs/receiver.md` for the
+bring-up procedure, troubleshooting, and the sampling delay.

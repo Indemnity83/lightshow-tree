@@ -4,11 +4,15 @@ This is the first planned hardware implementation. It retains the Member's
 Mark Lightshow Tree factory power board, STC8H8K64U, and thirty factory pixel
 outputs. The factory 2.4 GHz radio is removed.
 
+The tree takes two Falcon differential outputs of 510 pixels each, because a
+single output cannot carry all 1,020 pixels. Each output has its own MAX3485
+receiver, landing on a separate former radio pad.
+
 ## Purchased modules
 
 | Role | Module | Purchase reference |
 | --- | --- | --- |
-| Differential receiver at the tree | 3.3 V MAX3485 breakout with `A`, `B`, `GND`, `VCC`, `RXD`, `TXD`, and `EN` pads | [Amazon MAX3485 breakout](https://a.co/d/02lRfonH) |
+| Differential receivers at the tree (two) | 3.3 V MAX3485 breakout with `A`, `B`, `GND`, `VCC`, `RXD`, `TXD`, and `EN` pads | [Amazon MAX3485 breakout](https://a.co/d/02lRfonH) |
 | Cable termination / breakout at tree base | Dual parallel-RJ45 Cat5/6 breakout board | [Amazon RJ45 breakout](https://a.co/d/054dWxlo) |
 
 The MAX3485 breakout is a practical wired proof-of-concept. A future compact
@@ -18,9 +22,10 @@ receiver circuit below, rather than treating the transceiver as a bare IC.
 ## Future reproducible daughterboard
 
 The production/daughterboard version should fit the former radio location. Its
-host-interface symbol retains five available factory landing-pad nets, but
-revision 1 connects only the three needed at run time: 3.3 V, ground, and STC
-GPIO 27. It should contain:
+host-interface symbol retains five available factory landing-pad nets. The
+current KiCad revision is single-channel and connects only 3.3 V, ground, and
+STC GPIO 27; the two-channel tree needs a second receiver (U1–C2 duplicated)
+driving STC GPIO 29 / pad 1. Per channel it should contain:
 
 | Ref. | Part / value | Connection / purpose |
 | --- | --- | --- |
@@ -53,43 +58,55 @@ provide a stronger bias network.
 Falcon differential receiver port
   -> Cat5/6 cable
   -> base-mounted dual-RJ45 breakout
-  -> one selected twisted pair up the tree
-  -> MAX3485 A/B
-  -> MAX3485 RXD
-  -> factory radio pad 3 / STC pin 27 / P3.6
+  -> two twisted pairs up the tree
+  -> pair 1 -> MAX3485 #1 A/B -> RXD -> radio pad 3 / STC pin 27 / P3.6
+  -> pair 2 -> MAX3485 #2 A/B -> RXD -> radio pad 1 / STC pin 29 / P4.1
 ```
 
-At the top of the tree, the MAX3485 breakout is wired as follows:
+At the top of the tree, each MAX3485 breakout is wired as follows:
 
-| MAX3485 breakout pad | Factory board connection | Purpose |
+| MAX3485 breakout pad | Channel 1 (verticals 1–15) | Channel 2 (verticals 16–30) |
 | --- | --- | --- |
-| `VCC` | former radio pad 4 / 3.3 V | powers the receiver |
-| `GND` | former radio pad 7 / ground | logic ground return |
-| `RXD` | former radio pad 3 / STC pin 27 / P3.6 | received pixel waveform to firmware |
-| `A`, `B` | selected twisted pair from base breakout | Falcon differential data |
-| `TXD` | not connected | no transmitting is required |
-| `EN` | ground, or open if the module pull-down is confirmed | receive-only mode |
-| `T` solder jumper | leave open | do not force transmit mode |
+| `VCC` | former radio pad 4 / 3.3 V | former radio pad 4 / 3.3 V |
+| `GND` | former radio pad 7 / ground | former radio pad 7 / ground |
+| `RXD` | former radio pad 3 / STC pin 27 / P3.6 | former radio pad 1 / STC pin 29 / P4.1 |
+| `A`, `B` | pair 1 from base breakout | pair 2 from base breakout |
+| `TXD` | not connected | not connected |
+| `EN` | ground, or open if the module pull-down is confirmed | same |
+| `T` solder jumper | leave open | leave open |
 
-The CAT-side ground terminal is not used. The MAX3485 receives its local power
-and ground from the factory board, while the Cat5/6 cable carries only one
-twisted data pair.
+Leave `TXD` unconnected. On the purchased breakout it was observed to carry a
+copy of the received data, so a `TXD` wire to the tree board would put one
+channel's data on another pad.
+
+Former radio pad 2 (STC pin 28 / P3.7) is not used: the input probe read it
+as constantly low, so something on the factory board may hold it down.
+
+The CAT-side ground terminal is not used. The MAX3485s receive their local
+power and ground from the factory board, while the Cat5/6 cable carries only
+the twisted data pairs. Falcon's differential connector is understood to use
+all four pairs for data, with no ground pair (not yet checked against the
+Falcon manual). Running without a shared ground relies on the tree's 30 V
+supply having a floating output.
 
 ## Pair selection
 
-Selection happens physically at the MAX3485 board: connect the desired pair
-from the base breakout to `A` and `B`.
+Falcon differential outputs come in groups of four per RJ45 (1–4, 5–8, …,
+29–32). This tree uses outputs 29 and 30, the first two of their group.
 
-| Falcon logical output | Cat5/6 conductors (TIA-568B) |
-| --- | --- |
-| 1 | white/orange + orange |
-| 2 | white/green + green |
-| 3 | white/blue + blue |
-| 4 | white/brown + brown |
+| Output within the group | This tree | Cat5/6 conductors (TIA-568B) |
+| --- | --- | --- |
+| 1st | port 29, channel 1 | white/orange + orange |
+| 2nd | port 30, channel 2 | white/green + green |
+| 3rd | — | white/blue + blue |
+| 4th | — | white/brown + brown |
 
-Start with the pair's `+` conductor on `A` and its `-` conductor on `B`.
-If the first hardware test does not decode cleanly, swap only A/B at the
-MAX3485; leave the pair twisted together throughout the run.
+Channel 1's initial A/B wiring was inverted on the first hardware test: the
+input probe showed the line mostly high, with the inter-frame gap high.
+Swapping A and B fixed it. Wire channel 2
+the same way channel 1 ended up, and use the probe (`make flash-probe`) to
+confirm polarity before flashing the receiver. Swap only A/B at the MAX3485;
+leave each pair twisted together throughout the run.
 
 ## Power and safety limits
 

@@ -2,8 +2,13 @@
 
 This KiCad project will hold a small, castellated daughterboard installed on
 the pads exposed by removing the factory PAN2110P0AA radio.  Its function is to
-receive one Falcon differential data feed and deliver a logic-level serial
-signal to the existing STC8H8K64U.  The STC firmware then produces the 30
+receive Falcon differential data feeds and deliver logic-level signals to the
+existing STC8H8K64U.
+
+The current KiCad design receives one feed.  The tree now needs two (510
+pixels each, see `docs/hardware-plan.md`): channel 1 on GPIO 27 / pad 3 and
+channel 2 on GPIO 29 / pad 1.  A future revision duplicates the receiver
+circuit for the second channel.  The STC firmware then produces the 30
 independent pixel outputs already proven on the factory board.
 
 ## Important constraint
@@ -14,9 +19,9 @@ replacement firmware can repurpose any one of them as a receiver-data GPIO:
 
 | STC pin | Radio pin | Factory-radio function | Daughterboard use |
 | --- | --- | --- | --- |
-| 27 | 3 | data/SDA | preferred receiver-data GPIO |
-| 28 | 2 | clock/SCL | spare GPIO |
-| 29 | 1 | chip select | spare GPIO |
+| 27 | 3 | data/SDA | channel 1 receiver data |
+| 28 | 2 | clock/SCL | unused; reads constantly low with the radio removed |
+| 29 | 1 | chip select | channel 2 receiver data |
 
 In addition, the radio footprint exposes its local 3.3 V and ground pads.  The
 daughterboard will solder to exactly three factory pads: 3.3 V, ground, and the
