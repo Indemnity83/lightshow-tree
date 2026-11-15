@@ -117,20 +117,23 @@ the old 1/8 limit (level 31) and Falcon brightness at 100%:
 | Full blue | 0.17 A |
 | Full white | 0.40 A |
 
-Assuming pixel current is linear in level, full white at limit L draws about
-`0.04 + 0.36 × L / 31` A:
+A linear extrapolation from level 31 (`0.04 + 0.36 × L / 31` A) predicted
+1.20 A for full white at limit 100. The measured draw is lower:
 
-| Limit | Full white (predicted) | Share of 1.60 A |
+| Limit | Full white | Share of 1.60 A |
 | --- | --- | --- |
-| 31 (old 1/8) | 0.40 A (measured) | 25% |
-| 63 | 0.77 A | 48% |
-| **100 (default)** | **1.20 A** | **75%** |
-| 127 | 1.51 A | 94% |
+| 31 (old 1/8) | 0.40 A, measured | 25% |
+| **100 (default)** | **1.03–1.05 A, measured** | **65%** |
+| 120 | about 1.25 A, extrapolated | 78% |
 
-The target is about 1.3 A continuous (80% of the rating). The deferred
-45-pixel star adds roughly 4%, about 0.05 A at limit 100. The factory buck
-converter's own rating is unknown, so check it and the 30 V wiring for heat
-after a few minutes of full white at the default.
+At limit 100, full white held at 1.03–1.05 A for several minutes. The two
+heat-sinked parts of the factory 30 V to 5 V converter were warm but not hot.
+Above level 31 the draw rises by about 0.010 A per level.
+
+The target is about 1.3 A continuous (80% of the rating). 100 leaves room for
+the deferred 45-pixel star (roughly 4% more, about 0.04 A) and for warm
+ambient conditions. 120 is the highest limit that stays near the target with
+the star; flash it with `BRIGHTNESS=120` if the tree looks too dim on display.
 
 ## Timing tuning
 

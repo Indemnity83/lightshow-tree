@@ -24,8 +24,8 @@ __sbit __at (0xc1) FALCON_INPUT2;
 /* The factory 30 V / 1.6 A supply cannot support a full-white 1,020-pixel
  * frame, so every component is scaled to 0..RX_BRIGHTNESS_LIMIT before
  * replay.  Measured at the 30 V input: 0.04 A idle plus 0.36 A for full white
- * at level 31, roughly linear.  100 predicts ~1.20 A full white (75% of the
- * supply rating).  See docs/receiver.md.  Override with `make flash-receiver BRIGHTNESS=n`. */
+ * at level 31.  At 100, full white measured 1.03-1.05 A (65% of the supply
+ * rating) with the converter warm, not hot.  See docs/receiver.md.  Override with `make flash-receiver BRIGHTNESS=n`. */
 #ifndef RX_BRIGHTNESS_LIMIT
 #define RX_BRIGHTNESS_LIMIT 100
 #endif
