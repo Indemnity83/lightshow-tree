@@ -100,14 +100,14 @@ Falcon differential outputs come in groups of four per RJ45 (1–4, 5–8, …,
 | --- | --- | --- |
 | 1st | port 29, channel 1 | white/orange + orange |
 | 2nd | port 30, channel 2 | white/green + green |
-| 3rd | — | white/blue + blue |
-| 4th | — | white/brown + brown |
+| 3rd | port 31, star (deferred) | white/blue + blue |
+| 4th | port 32, base xConnect (deferred) | white/brown + brown |
 
 Channel 1's initial A/B wiring was inverted on the first hardware test: the
 input probe showed the line mostly high, with the inter-frame gap high.
-Swapping A and B fixed it. Wire channel 2
-the same way channel 1 ended up, and use the probe (`make flash-probe`) to
-confirm polarity before flashing the receiver. Swap only A/B at the MAX3485;
+Swapping A and B fixed it. Wire channel 2 the same way channel 1 ended up, and
+use the probe (`make flash-probe`) to confirm polarity before flashing the
+receiver. Swap only A/B at the MAX3485;
 leave each pair twisted together throughout the run.
 
 ## Power and safety limits
@@ -118,6 +118,59 @@ leave each pair twisted together throughout the run.
 - The receiver firmware applies a 1/8 component-brightness limit as a default.
 - Configure a low Falcon test brightness as an additional guard during initial
   bring-up.
+
+## Deferred: star and base xConnect
+
+The first goal is the full tree on two channels, which fits on a perfboard
+carrying the two MAX3485 breakouts. The star and a fourth output are deferred
+until a custom receiver daughterboard replaces the breakouts.
+
+### Star on Falcon port 31
+
+The factory star is a single 45-pixel string on MCU pin 12 / P1.3, so it does
+not need the MCU's capture-and-replay. A MAX3485's `RXD` output is already the
+WS281x pixel waveform, so a third receiver can drive the star directly:
+
+```text
+Falcon port 31 (pair 3, white/blue + blue)
+  -> MAX3485 #3 A/B
+  -> RXD
+  -> MCU side of pin 12's 100-ohm series resistor
+  -> factory star
+```
+
+- The firmware must first stop driving pin 12 (set P1.3 to high-impedance
+  input). Every current build drives it low, which would fight the receiver
+  output. Flash that change **before** connecting the third receiver; the
+  bootloader leaves pins high-impedance, so reflashing afterwards is safe.
+- Configure port 31 as 45 pixels with its own Falcon brightness limit. The
+  firmware's 1/8 limit does not apply, because the star bypasses the MCU.
+- The factory star is driven at 3.3 V by the MCU today, so a 3.3 V `RXD`
+  output should drive it equally well.
+- This replaces the earlier plan to swap the factory star for a separate coro
+  star; either remains possible.
+
+### xConnect output on Falcon port 32
+
+The fourth pair can serve another prop near the tree through a standard
+xConnect connector in the base. This needs nothing at the top of the tree: a
+fourth MAX3485 (or a small dumb Falcon receiver) at the base breakout converts
+pair 4 back to a single-ended pixel signal, and the element also needs its own
+5 V or 12 V power at the base.
+
+### Daughterboard revision
+
+A three- or four-channel version of the KiCad receiver in `hardware/receiver/`
+duplicates the per-channel receiver circuit above. Available landing pads:
+
+| Channel | Destination |
+| --- | --- |
+| 1 | radio pad 3 / STC pin 27 / P3.6 |
+| 2 | radio pad 1 / STC pin 29 / P4.1 |
+| 3 (star) | pin 12 star line, not a radio pad |
+| spare | radio pad 2 / STC pin 28 / P3.7 |
+
+The base xConnect receiver lives at the base, not on this board.
 
 ## Planned 180° tree layout
 
