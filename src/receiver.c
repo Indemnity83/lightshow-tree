@@ -22,8 +22,16 @@ __sbit __at (0xc1) FALCON_INPUT2;
  */
 
 /* The factory 30 V / 1.6 A supply cannot support a full-white 1,020-pixel
- * frame. Clamp every component to 1/8 before replay (~12.5% maximum level). */
-#define BRIGHTNESS_SHIFT 3U
+ * frame, so every component is scaled to 0..RX_BRIGHTNESS_LIMIT before
+ * replay.  Measured at the 30 V input: 0.04 A idle plus 0.36 A for full white
+ * at level 31, roughly linear.  100 predicts ~1.20 A full white (75% of the
+ * supply rating).  See docs/receiver.md.  Override with `make flash-receiver BRIGHTNESS=n`. */
+#ifndef RX_BRIGHTNESS_LIMIT
+#define RX_BRIGHTNESS_LIMIT 100
+#endif
+
+#define STRINGIFY(x) #x
+#define STRINGIFY_VALUE(x) STRINGIFY(x)
 
 /* Clocks of delay between seeing a channel 1 rising edge and sampling.
  * Margin-tested on the tree: 10 and below misread zeros, 12-14 decode
@@ -40,6 +48,8 @@ __sbit __at (0xc1) FALCON_INPUT2;
 static __xdata unsigned char capture[TREE_FRAME_BYTES];
 /* Replay order: channel 1's 1,530 bytes, then channel 2's. */
 static __xdata unsigned char frame[TREE_FRAME_BYTES];
+/* Input level -> limited output level, built once at boot. */
+static __xdata unsigned char brightness[256];
 static unsigned char first_report;
 
 /*
@@ -109,6 +119,14 @@ static unsigned char capture_frame(void) __naked {
     __endasm;
 }
 
+static void build_brightness_table(void) {
+    unsigned int level;
+
+    for (level = 0U; level != 256U; ++level)
+        brightness[level] = (unsigned char)
+            ((level * RX_BRIGHTNESS_LIMIT + 127U) / 255U);
+}
+
 /* Split the interleaved capture into replay order, applying the brightness
  * limit on the way. */
 static void unpack_frame(void) {
@@ -118,8 +136,8 @@ static void unpack_frame(void) {
     unsigned int count;
 
     for (count = CHANNEL_BYTES; count != 0U; --count) {
-        *channel1++ = *source++ >> BRIGHTNESS_SHIFT;
-        *channel2++ = *source++ >> BRIGHTNESS_SHIFT;
+        *channel1++ = brightness[*source++];
+        *channel2++ = brightness[*source++];
     }
 }
 
@@ -135,11 +153,13 @@ static void replay_frame(void) {
 
 void receiver_init(void) {
     first_report = 1U;
+    build_brightness_table();
     serial_init();
     serial_puts("lightshow-tree Falcon receiver\r\n");
     serial_puts("ch1: P3.6 / MCU pin 27, verticals 1-15\r\n");
     serial_puts("ch2: P4.1 / MCU pin 29, verticals 16-30\r\n");
-    serial_puts("brightness: 1/8\r\n");
+    serial_puts("brightness limit: "
+                STRINGIFY_VALUE(RX_BRIGHTNESS_LIMIT) "/255\r\n");
 }
 
 void receiver_service(void) {

@@ -35,7 +35,8 @@ channel's data onto another pad.
    together, which held on the first two-channel test: a chase decoded
    cleanly on all 30 verticals.
 3. The interleaved capture is split into replay order and every component is
-   divided by eight to protect the factory power supply.
+   scaled to at most 100/255 to protect the factory power supply (see
+   [Brightness limit](#brightness-limit)).
 4. It replays 34 pixels to each of the thirty verticals in the proven physical
    clockwise order. The factory star output is untouched.
 
@@ -53,7 +54,7 @@ verticals 16–30 show noise.
 - Two outputs on the same differential RJ45, each 510 RGB pixels.
 - No null pixels, grouping, or zig-zag.
 - A low test brightness in the Falcon configuration during bring-up, as a
-  second safety limit on top of the firmware's 1/8 limit.
+  second safety limit on top of the firmware's brightness limit.
 
 ## Bring-up procedure
 
@@ -94,6 +95,42 @@ verticals 16–30 show noise.
 | All lit pixels dim white | Sample point too early: every bit reads as a one |
 | Wrong or flickering colors | Sample point marginal, or channel 2 not bit-aligned with channel 1 |
 | Verticals 16–30 noise only | Channel 2 not wired, A/B swapped, or wrong Falcon port |
+
+## Brightness limit
+
+Every received component level (0–255) is mapped through a 256-entry table to
+0–`RX_BRIGHTNESS_LIMIT` before replay. The default is 100. Override it for a
+measurement without editing the source:
+
+```sh
+make flash-receiver PORT=/dev/cu.usbserial-210 BRIGHTNESS=63
+```
+
+Current measured at the 30 V output of the AC/DC supply (rated 1.60 A), with
+the old 1/8 limit (level 31) and Falcon brightness at 100%:
+
+| Falcon pattern | 30 V current |
+| --- | --- |
+| All black | 0.04 A |
+| Full red | 0.17 A |
+| Full green | 0.18 A |
+| Full blue | 0.17 A |
+| Full white | 0.40 A |
+
+Assuming pixel current is linear in level, full white at limit L draws about
+`0.04 + 0.36 × L / 31` A:
+
+| Limit | Full white (predicted) | Share of 1.60 A |
+| --- | --- | --- |
+| 31 (old 1/8) | 0.40 A (measured) | 25% |
+| 63 | 0.77 A | 48% |
+| **100 (default)** | **1.20 A** | **75%** |
+| 127 | 1.51 A | 94% |
+
+The target is about 1.3 A continuous (80% of the rating). The deferred
+45-pixel star adds roughly 4%, about 0.05 A at limit 100. The factory buck
+converter's own rating is unknown, so check it and the 30 V wiring for heat
+after a few minutes of full white at the default.
 
 ## Timing tuning
 

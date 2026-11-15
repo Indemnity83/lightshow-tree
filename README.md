@@ -68,8 +68,9 @@ base-mounted RJ45 breakout modules, wiring, and Falcon pair selection.
 `RXD` outputs at once: channel 1 on STC pin 27 / P3.6 (verticals 1–15) and
 channel 2 on STC pin 29 / P4.1 (verticals 16–30). Each channel is one
 510-pixel RGB Falcon output; this tree uses Falcon ports 29 and 30. The
-firmware limits every component to 1/8 brightness and replays the frame in the
-confirmed clockwise order.
+firmware limits every component to 100/255 brightness, sized from current
+measurements at the supply, and replays the frame in the confirmed clockwise
+order.
 
 Flash it only with each MAX3485 configured receive-only (`T` open, `EN` low or
 open, `TXD` unconnected). Use `make flash-probe` first to confirm each pad
