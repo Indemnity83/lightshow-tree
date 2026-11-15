@@ -26,11 +26,11 @@ __sbit __at (0xc1) FALCON_INPUT2;
 #define BRIGHTNESS_SHIFT 3U
 
 /* Clocks of delay between seeing a channel 1 rising edge and sampling.
- * Measured on the tree: 7 sampled too early (every bit read as a one), 12
- * decodes correctly.  Override for margin testing with
+ * Margin-tested on the tree: 10 and below misread zeros, 12-14 decode
+ * cleanly, 16 flickers.  13 is the middle of the clean range.  Override with
  * `make flash-receiver SAMPLE_DELAY=n`; see docs/receiver.md. */
 #ifndef RX_SAMPLE_DELAY
-#define RX_SAMPLE_DELAY 12
+#define RX_SAMPLE_DELAY 13
 #endif
 
 /* Bytes received on each channel: 15 verticals. */

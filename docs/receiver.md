@@ -101,7 +101,8 @@ The capture loop distinguishes a WS281x zero from a one by sampling a fixed
 number of clocks after channel 1's rising edge: after a zero pulse has ended
 (about 11 clocks at 32 MHz) but before a one pulse has (about 22). The delay
 is `RX_SAMPLE_DELAY` in `src/receiver.c`, emitted as that many single-clock
-`nop`s with the assembler's `.rept`. The default is 12.
+`nop`s with the assembler's `.rept`. The default, 13, is the middle of the
+measured clean range below.
 
 Cycle-counted sampling is the standard technique here: at 40 clocks per bit
 there is no time for an interrupt per bit, and the STC8H has no peripheral
@@ -125,11 +126,19 @@ delay down until the tree turns whitish, then up until colors drop out or
 darken, and set the default to the midpoint of the values that decode
 cleanly.
 
+Results on this tree (Falcon chase and RGB tests, both channels):
+
 | Delay | Result |
 | --- | --- |
 | 7 | Every bit read as a one: dim white |
-| 12 | Clean on both channels (RGB test, chase across the seam) |
+| 10 | Wrong colors on some channels: zeros misread |
+| 12 | Clean |
+| 14 | Clean |
+| 16 | Flicker, no wrong colors |
+| **13** | **Default: middle of the clean range** |
 
-At larger delays the end-of-byte store also runs later, so the upper limit may
-come from the loop overrunning the next bit rather than from the one-pulse
-width. Either way it is a real limit.
+The clean window is narrow, about ±2 clocks around 13. The flicker at 16
+(rather than wrong colors) suggests the upper limit comes from the end-of-byte
+store running into the next bit, not from the one-pulse width. Shortening the
+work after the sample would widen the window if a different Falcon timing
+setting or pixel type ever needs it.
