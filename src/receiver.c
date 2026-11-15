@@ -25,6 +25,14 @@ __sbit __at (0xc1) FALCON_INPUT2;
  * frame. Clamp every component to 1/8 before replay (~12.5% maximum level). */
 #define BRIGHTNESS_SHIFT 3U
 
+/* Clocks of delay between seeing a channel 1 rising edge and sampling.
+ * Measured on the tree: 7 sampled too early (every bit read as a one), 12
+ * decodes correctly.  Override for margin testing with
+ * `make flash-receiver SAMPLE_DELAY=n`; see docs/receiver.md. */
+#ifndef RX_SAMPLE_DELAY
+#define RX_SAMPLE_DELAY 12
+#endif
+
 /* Bytes received on each channel: 15 verticals. */
 #define CHANNEL_BYTES (TREE_FRAME_BYTES / 2U)
 
@@ -39,9 +47,9 @@ static unsigned char first_report;
  *
  * At 32 MHz, a WS281x zero high is roughly 11 clocks and a one high roughly
  * 22 clocks, in a 40-clock bit. After detecting a channel 1 rising edge,
- * twelve NOPs put the P3.6 sample near the middle of those two widths; P4.1
- * is sampled two clocks later. A zero has fallen; a one remains high.
- * (Seven NOPs sampled too early: every bit read as a one.)
+ * RX_SAMPLE_DELAY single-clock NOPs put the P3.6 sample between those two
+ * widths; P4.1 is sampled two clocks later. A zero has fallen; a one remains
+ * high.
  *
  * The byte store runs straight after the eighth sample, while the loop would
  * otherwise only be waiting for the falling edge, so it finishes before the
@@ -50,8 +58,6 @@ static unsigned char first_report;
  *
  * The outer reset detector requires three complete 256-sample low passes, so
  * it cannot mistake an ordinary inter-bit low interval for a latch/reset.
- * The timing constants are intentionally local to this small assembly block:
- * an oscilloscope check may ask us to add or remove one NOP.
  */
 static unsigned char capture_frame(void) __naked {
     __asm
@@ -77,18 +83,9 @@ static unsigned char capture_frame(void) __naked {
         jb      _FALCON_INPUT1,00004$
 00005$:
         jnb     _FALCON_INPUT1,00005$
+        .rept   RX_SAMPLE_DELAY
         nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
-        nop
+        .endm
         mov     c,_FALCON_INPUT1
         rlc     a
         mov     c,_FALCON_INPUT2

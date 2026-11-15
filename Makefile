@@ -23,6 +23,10 @@ endif
 ifeq ($(TARGET),receiver)
 SOURCES += src/receiver.c
 CFLAGS += -DFIRMWARE_RECEIVER --opt-code-speed
+ifneq ($(SAMPLE_DELAY),)
+CFLAGS += -DRX_SAMPLE_DELAY=$(SAMPLE_DELAY)
+BUILD_DIR := build/receiver-delay$(SAMPLE_DELAY)
+endif
 endif
 ifeq ($(TARGET),probe)
 SOURCES += src/probe.c src/serial.c
@@ -99,9 +103,8 @@ flash-demo:
 	$(STC8PROG) -p $(PORT) -e -f build/demo/lightshow-tree.hex
 
 flash-receiver:
-	$(MAKE) TARGET=receiver all
-	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX"; exit 1)
-	$(STC8PROG) -p $(PORT) -e -f build/receiver/lightshow-tree.hex
+	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX [SAMPLE_DELAY=n]"; exit 1)
+	$(MAKE) TARGET=receiver flash
 
 flash-probe:
 	$(MAKE) TARGET=probe all

@@ -97,13 +97,39 @@ verticals 16–30 show noise.
 
 ## Timing tuning
 
-The capture loop distinguishes a WS281x zero from a one by sampling after the
-rising edge, after a zero pulse has ended but before a one pulse has. With
-seven `nop`s every bit read as a one (dim white); twelve decoded the Falcon RGB
-test pattern correctly on the first hardware test. The `nop`s are in the
-single sampling site in `capture_frame` in `src/receiver.c`.
+The capture loop distinguishes a WS281x zero from a one by sampling a fixed
+number of clocks after channel 1's rising edge: after a zero pulse has ended
+(about 11 clocks at 32 MHz) but before a one pulse has (about 22). The delay
+is `RX_SAMPLE_DELAY` in `src/receiver.c`, emitted as that many single-clock
+`nop`s with the assembler's `.rept`. The default is 12.
 
-Twelve has not yet been margin-tested. Building with ten and with fourteen and
-confirming that both still decode cleanly would show that twelve is centered.
-An oscilloscope or logic analyzer on the RXD outputs gives the actual zero and
-one high times directly.
+Cycle-counted sampling is the standard technique here: at 40 clocks per bit
+there is no time for an interrupt per bit, and the STC8H has no peripheral
+that decodes WS281x pulse widths on these pins. The 1T core runs the loop
+deterministically; the only jitter is the 0–3 clocks the polling loop takes to
+see the rising edge.
+
+### Margin test
+
+Build and flash a different delay without editing the source:
+
+```sh
+make flash-receiver PORT=/dev/cu.usbserial-210 SAMPLE_DELAY=10
+```
+
+Each value builds into its own `build/receiver-delayN/` directory. Plain
+`make flash-receiver` returns to the default.
+
+Use a Falcon test pattern with distinct colors (RGB or a chase). Step the
+delay down until the tree turns whitish, then up until colors drop out or
+darken, and set the default to the midpoint of the values that decode
+cleanly.
+
+| Delay | Result |
+| --- | --- |
+| 7 | Every bit read as a one: dim white |
+| 12 | Clean on both channels (RGB test, chase across the seam) |
+
+At larger delays the end-of-byte store also runs later, so the upper limit may
+come from the loop overrunning the next bit rather than from the one-pulse
+width. Either way it is a real limit.
