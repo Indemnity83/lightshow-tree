@@ -32,7 +32,8 @@ channel's data onto another pad.
 2. A tight assembly loop captures 510 RGB pixels from both channels at once.
    Bit timing comes from channel 1's rising edges; channel 2 is sampled two
    clocks after channel 1. This relies on the Falcon clocking its ports out
-   together; the first two-channel test confirms it.
+   together, which held on the first two-channel test: a chase decoded
+   cleanly on all 30 verticals.
 3. The interleaved capture is split into replay order and every component is
    divided by eight to protect the factory power supply.
 4. It replays 34 pixels to each of the thirty verticals in the proven physical

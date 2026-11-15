@@ -145,7 +145,6 @@ The unnamed pads are numbered from the MCU outward.
 ## Open items
 
 - Margin-test the receiver sample point (see `docs/receiver.md`).
-- Validate the second receiver channel on radio pad 1 / P4.1.
 
 ## Factory off behavior
 

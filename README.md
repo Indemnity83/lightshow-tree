@@ -10,9 +10,10 @@ them to the STC MCU's 3.3 V input level.
 
 ## Status
 
-The pixel-output mapping is confirmed, and the receiver firmware has decoded a
-Falcon RGB test pattern end to end on channel 1 (verticals 1–15). The
-two-channel firmware is built; channel 2 (verticals 16–30) is not yet wired.
+The pixel-output mapping is confirmed, and the two-channel receiver drives all
+30 verticals from two Falcon outputs: a Falcon chase test runs cleanly across
+the seam between verticals 15 and 16. The star and a fourth output are
+deferred (see the hardware plan).
 
 | Target | Purpose |
 | --- | --- |
