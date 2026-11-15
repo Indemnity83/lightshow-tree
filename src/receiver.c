@@ -21,13 +21,33 @@ __sbit __at (0xc1) FALCON_INPUT2;
  * its ports out together, so channel 2 is sampled at the same moment.
  */
 
-/* The factory 30 V / 1.6 A supply cannot support a full-white 1,020-pixel
- * frame, so every component is scaled to 0..RX_BRIGHTNESS_LIMIT before
- * replay.  Measured at the 30 V input: 0.04 A idle plus 0.36 A for full white
- * at level 31.  At 100, full white measured 1.03-1.05 A (65% of the supply
- * rating) with the converter warm, not hot.  See docs/receiver.md.  Override with `make flash-receiver BRIGHTNESS=n`. */
+/*
+ * Power limiting.  The factory 30 V / 1.6 A supply cannot support a full-white
+ * 1,020-pixel frame, but normal show content arrives already scaled by the
+ * Falcon's port brightness (40% on this tree).  So levels pass through
+ * unchanged, and a frame is scaled down only when its estimated draw would
+ * exceed RX_POWER_BUDGET_MA.  The Falcon's test mode ignores port brightness,
+ * so this is what protects the supply from a full-white test.
+ *
+ * Calibration, measured at the 30 V input: 0.04 A idle; full white at output
+ * level 100 drew 1.04 A, i.e. 1 A per 306,000 units of summed level (1,020
+ * pixels * 3 components * 100).  Above level 31 the draw rose more slowly
+ * than linearly, so extrapolating from level 100 overestimates: the limit
+ * errs on the safe side.  See docs/receiver.md.
+ */
+#ifndef RX_POWER_BUDGET_MA
+#define RX_POWER_BUDGET_MA 1250
+#endif
+#define RX_IDLE_MA 40UL
+#define RX_LEVEL_SUM_PER_MA 306UL
+#define RX_LEVEL_SUM_BUDGET \
+    (((unsigned long)RX_POWER_BUDGET_MA - RX_IDLE_MA) * RX_LEVEL_SUM_PER_MA)
+
+/* Optional fixed cap applied before the power limiter, as the old firmware
+ * did.  255 (the default) passes levels through unchanged.  Override with
+ * `make flash-receiver BRIGHTNESS=n`. */
 #ifndef RX_BRIGHTNESS_LIMIT
-#define RX_BRIGHTNESS_LIMIT 100
+#define RX_BRIGHTNESS_LIMIT 255
 #endif
 
 #define STRINGIFY(x) #x
@@ -48,9 +68,12 @@ __sbit __at (0xc1) FALCON_INPUT2;
 static __xdata unsigned char capture[TREE_FRAME_BYTES];
 /* Replay order: channel 1's 1,530 bytes, then channel 2's. */
 static __xdata unsigned char frame[TREE_FRAME_BYTES];
-/* Input level -> limited output level, built once at boot. */
+/* Input level -> capped output level, built once at boot. */
 static __xdata unsigned char brightness[256];
+/* Level -> power-limited level, rebuilt for each frame that needs it. */
+static __xdata unsigned char power_scale[256];
 static unsigned char first_report;
+static unsigned char limiting;
 
 /*
  * Capture an entire frame with no C code in the bit loop.
@@ -127,17 +150,48 @@ static void build_brightness_table(void) {
             ((level * RX_BRIGHTNESS_LIMIT + 127U) / 255U);
 }
 
-/* Split the interleaved capture into replay order, applying the brightness
- * limit on the way. */
-static void unpack_frame(void) {
+/* Split the interleaved capture into replay order, applying the fixed cap on
+ * the way, and return the frame's summed level.  The sum is kept in 16 bits
+ * for 51 byte pairs at a time (at most 26,010) to avoid a 32-bit add per
+ * byte. */
+static unsigned long unpack_frame(void) {
     const __xdata unsigned char *source = capture;
     __xdata unsigned char *channel1 = frame;
     __xdata unsigned char *channel2 = frame + CHANNEL_BYTES;
+    unsigned long total = 0UL;
+    unsigned char block;
+    unsigned char count;
+    unsigned int partial;
+    unsigned char level;
+
+    for (block = CHANNEL_BYTES / 51U; block != 0U; --block) {
+        partial = 0U;
+        for (count = 51U; count != 0U; --count) {
+            level = brightness[*source++];
+            *channel1++ = level;
+            partial += level;
+            level = brightness[*source++];
+            *channel2++ = level;
+            partial += level;
+        }
+        total += partial;
+    }
+    return total;
+}
+
+/* Scale the whole frame so its summed level fits the power budget. */
+static void limit_power(unsigned long total) {
+    unsigned char scale = (unsigned char)((RX_LEVEL_SUM_BUDGET << 8) / total);
+    unsigned int level;
+    __xdata unsigned char *pixel;
     unsigned int count;
 
-    for (count = CHANNEL_BYTES; count != 0U; --count) {
-        *channel1++ = brightness[*source++];
-        *channel2++ = brightness[*source++];
+    for (level = 0U; level != 256U; ++level)
+        power_scale[level] = (unsigned char)((level * scale) >> 8);
+    pixel = frame;
+    for (count = TREE_FRAME_BYTES; count != 0U; --count) {
+        *pixel = power_scale[*pixel];
+        ++pixel;
     }
 }
 
@@ -158,14 +212,28 @@ void receiver_init(void) {
     serial_puts("lightshow-tree Falcon receiver\r\n");
     serial_puts("ch1: P3.6 / MCU pin 27, verticals 1-15\r\n");
     serial_puts("ch2: P4.1 / MCU pin 29, verticals 16-30\r\n");
-    serial_puts("brightness limit: "
+    serial_puts("brightness cap: "
                 STRINGIFY_VALUE(RX_BRIGHTNESS_LIMIT) "/255\r\n");
+    serial_puts("power budget: "
+                STRINGIFY_VALUE(RX_POWER_BUDGET_MA) " mA\r\n");
 }
 
 void receiver_service(void) {
+    unsigned long total;
+
     if (!capture_frame()) return;
 
-    unpack_frame();
+    total = unpack_frame();
+    if (total > RX_LEVEL_SUM_BUDGET) {
+        limit_power(total);
+        if (!limiting) {
+            limiting = 1U;
+            serial_puts("power: limiting\r\n");
+        }
+    } else if (limiting) {
+        limiting = 0U;
+        serial_puts("power: within budget\r\n");
+    }
     replay_frame();
 
     /* One report confirms the frame path without flooding the UART. */

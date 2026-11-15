@@ -34,9 +34,9 @@ channel's data onto another pad.
    clocks after channel 1. This relies on the Falcon clocking its ports out
    together, which held on the first two-channel test: a chase decoded
    cleanly on all 30 verticals.
-3. The interleaved capture is split into replay order and every component is
-   scaled to at most 100/255 to protect the factory power supply (see
-   [Brightness limit](#brightness-limit)).
+3. The interleaved capture is split into replay order. If the frame's
+   estimated draw exceeds the power budget, it is scaled down to fit (see
+   [Power limiting](#power-limiting)).
 4. It replays 34 pixels to each of the thirty verticals in the proven physical
    clockwise order. The factory star output is untouched.
 
@@ -54,7 +54,7 @@ verticals 16–30 show noise.
 - Two outputs on the same differential RJ45, each 510 RGB pixels.
 - No null pixels, grouping, or zig-zag.
 - A low test brightness in the Falcon configuration during bring-up, as a
-  second safety limit on top of the firmware's brightness limit.
+  second safety limit on top of the firmware's power limiter.
 
 ## Bring-up procedure
 
@@ -96,44 +96,62 @@ verticals 16–30 show noise.
 | Wrong or flickering colors | Sample point marginal, or channel 2 not bit-aligned with channel 1 |
 | Verticals 16–30 noise only | Channel 2 not wired, A/B swapped, or wrong Falcon port |
 
-## Brightness limit
+## Power limiting
 
-Every received component level (0–255) is mapped through a 256-entry table to
-0–`RX_BRIGHTNESS_LIMIT` before replay. The default is 100. Override it for a
-measurement without editing the source:
+Brightness is controlled in the Falcon, the same as every other prop: this
+tree's ports are set to 40%. The firmware passes levels through unchanged and
+only steps in when a frame's estimated draw would exceed the power budget
+(`RX_POWER_BUDGET_MA`, default 1,250 mA, about 78% of the supply's 1.60 A
+rating). That frame is then scaled down uniformly, so colors keep their
+ratios, just far enough to fit.
+
+This matters because the F16v4's test mode ignores port brightness. All of
+the measurements below were taken with the ports at 40%, yet the tree
+received full level 255.
+
+The UART reports `power: limiting` when the limiter engages and
+`power: within budget` when it releases.
+
+| Case | Level in | Level out | Estimated 30 V draw |
+| --- | --- | --- | --- |
+| Show content, full white at 40% port brightness | 102 | 102 | about 1.06 A |
+| Falcon test mode, full white | 255 | 120 | about 1.24 A |
+
+Overrides for testing, without editing the source:
 
 ```sh
-make flash-receiver PORT=/dev/cu.usbserial-210 BRIGHTNESS=63
+make flash-receiver PORT=/dev/cu.usbserial-210 POWER_BUDGET=1000
+make flash-receiver PORT=/dev/cu.usbserial-210 BRIGHTNESS=100
 ```
 
-Current measured at the 30 V output of the AC/DC supply (rated 1.60 A), with
-the old 1/8 limit (level 31) and Falcon brightness at 100%:
+`BRIGHTNESS` applies the old fixed cap (0–255 mapped to 0–n) before the
+limiter; the default, 255, disables it.
 
-| Falcon pattern | 30 V current |
-| --- | --- |
-| All black | 0.04 A |
-| Full red | 0.17 A |
-| Full green | 0.18 A |
-| Full blue | 0.17 A |
-| Full white | 0.40 A |
+### Calibration
 
-A linear extrapolation from level 31 (`0.04 + 0.36 × L / 31` A) predicted
-1.20 A for full white at limit 100. The measured draw is lower:
+Current measured at the 30 V output of the AC/DC supply, Falcon test mode
+(unscaled level 255) with a fixed firmware cap:
 
-| Limit | Full white | Share of 1.60 A |
+| Firmware cap | Falcon pattern | 30 V current |
 | --- | --- | --- |
-| 31 (old 1/8) | 0.40 A, measured | 25% |
-| **100 (default)** | **1.03–1.05 A, measured** | **65%** |
-| 120 | about 1.25 A, extrapolated | 78% |
+| — | All black | 0.04 A |
+| 31 | Full red | 0.17 A |
+| 31 | Full green | 0.18 A |
+| 31 | Full blue | 0.17 A |
+| 31 | Full white | 0.40 A |
+| 100 | Full white, held several minutes | 1.03–1.05 A |
 
-At limit 100, full white held at 1.03–1.05 A for several minutes. The two
-heat-sinked parts of the factory 30 V to 5 V converter were warm but not hot.
-Above level 31 the draw rises by about 0.010 A per level.
+At cap 100 the two heat-sinked parts of the factory 30 V to 5 V converter
+were warm but not hot.
 
-The target is about 1.3 A continuous (80% of the rating). 100 leaves room for
-the deferred 45-pixel star (roughly 4% more, about 0.04 A) and for warm
-ambient conditions. 120 is the highest limit that stays near the target with
-the star; flash it with `BRIGHTNESS=120` if the tree looks too dim on display.
+The limiter models draw as 0.04 A idle plus 1 A per 306,000 units of summed
+component level, from the cap-100 measurement (1,020 × 3 × 100 = 306,000
+for 1.0 A above idle). Between levels 31 and 100 the draw rose more slowly
+than linearly, so extrapolating from 100 overestimates higher levels and the
+limit errs on the safe side.
+
+The deferred 45-pixel star bypasses the MCU and the limiter. At 40% it adds
+about 0.04 A; in test mode about 0.1 A.
 
 ## Timing tuning
 

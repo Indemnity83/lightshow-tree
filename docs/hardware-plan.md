@@ -115,8 +115,9 @@ leave each pair twisted together throughout the run.
 - The factory 30 V / 1.6 A supply remains responsible for the tree's 5 V
   pixel rail.
 - The MAX3485 is powered from the existing 3.3 V logic rail, not from Cat5/6.
-- The receiver firmware limits every component to 100/255, sized from current
-  measurements at the supply (see `docs/receiver.md`).
+- Brightness is set by the Falcon port (40%). The receiver firmware scales a
+  frame down only if its estimated draw would exceed 1.25 A, calibrated from
+  current measurements at the supply (see `docs/receiver.md`).
 - Configure a low Falcon test brightness as an additional guard during initial
   bring-up.
 
@@ -145,7 +146,7 @@ Falcon port 31 (pair 3, white/blue + blue)
   output. Flash that change **before** connecting the third receiver; the
   bootloader leaves pins high-impedance, so reflashing afterwards is safe.
 - Configure port 31 as 45 pixels with its own Falcon brightness limit. The
-  firmware's brightness limit does not apply, because the star bypasses the
+  firmware's power limiter does not apply, because the star bypasses the
   MCU.
 - The factory star is driven at 3.3 V by the MCU today, so a 3.3 V `RXD`
   output should drive it equally well.
