@@ -116,7 +116,7 @@ The UART reports `power: limiting` when the limiter engages and
 | Case (40% port brightness) | Level in | Level out | 30 V draw |
 | --- | --- | --- | --- |
 | Full red | 102 | 102 | 0.85 A, measured |
-| Full white | 102 | 48 | about 1.24 A, estimated |
+| Full white | 102 | 48 | 1.23–1.24 A, measured |
 
 The F16v4's test mode applies port brightness, so test patterns behave the
 same as show content.
@@ -147,6 +147,7 @@ sending level 102 (40% port brightness):
 | pass-through | Full red | 102 | 0.84–0.88 A |
 | pass-through, limiter off | White ramp | 60 | 1.52 A, stable |
 | pass-through, limiter off | White ramp | 64 | supply trips (hiccup restart) |
+| limiter, 1,250 mA budget | Full white | 48 | 1.23–1.24 A, steady |
 
 At 1.04 A the two heat-sinked parts of the factory 30 V to 5 V converter were
 warm but not hot.
