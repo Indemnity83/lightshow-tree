@@ -55,3 +55,8 @@ make flash PORT=/dev/cu.usbserial-XXXX
 ```
 
 This erases the factory MCU firmware before writing the project image.
+
+To build and flash a specific target in one step, use `make flash-receiver` or
+`make flash-probe` with the same `PORT=`. If the tool reports
+`failed to detect chip`, the power cycle was missed; run the command again and
+cycle power while it waits.

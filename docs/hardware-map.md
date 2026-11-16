@@ -144,7 +144,9 @@ The unnamed pads are numbered from the MCU outward.
 
 ## Open items
 
-- Margin-test the receiver sample point (see `docs/receiver.md`).
+- None for the two-channel receiver. The sample point has been
+  margin-tested and the power limiter calibrated (see `docs/receiver.md`);
+  the star and a fourth output are deferred (see `docs/hardware-plan.md`).
 
 ## Factory off behavior
 

@@ -12,7 +12,8 @@ them to the STC MCU's 3.3 V input level.
 
 The pixel-output mapping is confirmed, and the two-channel receiver drives all
 30 verticals from two Falcon outputs: a Falcon chase test runs cleanly across
-the seam between verticals 15 and 16. The star and a fourth output are
+the seam between verticals 15 and 16. The power limiter holds full white
+at about 1.24 A from the factory 1.6 A supply. The star and a fourth output are
 deferred (see the hardware plan).
 
 | Target | Purpose |
@@ -49,6 +50,7 @@ make receiver
 make probe
 make check-toolchain
 make detect PORT=/dev/cu.usbserial-XXXX
+make flash-receiver PORT=/dev/cu.usbserial-XXXX
 make terminal PORT=/dev/cu.usbserial-XXXX
 ```
 
