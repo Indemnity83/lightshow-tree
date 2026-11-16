@@ -22,26 +22,30 @@ __sbit __at (0xc1) FALCON_INPUT2;
  */
 
 /*
- * Power limiting.  The factory 30 V / 1.6 A supply cannot support a full-white
- * 1,020-pixel frame, but normal show content arrives already scaled by the
- * Falcon's port brightness (40% on this tree).  So levels pass through
- * unchanged, and a frame is scaled down only when its estimated draw would
- * exceed RX_POWER_BUDGET_MA.  The Falcon's test mode ignores port brightness,
- * so this is what protects the supply from a full-white test.
+ * Power limiting.  The factory 30 V / 1.6 A supply cannot support a bright
+ * 1,020-pixel frame: full white at level 255 would draw roughly 6 A, and even
+ * the 40% Falcon port brightness this tree uses (level 102) about 2.5 A.
+ * Levels pass through unchanged, and a frame is scaled down only when its
+ * estimated draw would exceed RX_POWER_BUDGET_MA.
  *
- * Calibration, measured at the 30 V input: 0.04 A idle; full white at output
- * level 100 drew 1.04 A, i.e. 1 A per 306,000 units of summed level (1,020
- * pixels * 3 components * 100).  Above level 31 the draw rose more slowly
- * than linearly, so extrapolating from level 100 overestimates: the limit
- * errs on the safe side.  See docs/receiver.md.
+ * Calibration, measured at the 30 V input with the Falcon sending level 102
+ * (its test mode applies port brightness): 0.04 A idle; full white at output
+ * level 40 drew 1.04 A, i.e. 1 A per 122,400 units of summed level (1,020
+ * pixels * 3 components * 40); full red at level 102 drew 0.85 A, which
+ * agrees.  See docs/receiver.md.
  */
 #ifndef RX_POWER_BUDGET_MA
 #define RX_POWER_BUDGET_MA 1250
 #endif
 #define RX_IDLE_MA 40UL
-#define RX_LEVEL_SUM_PER_MA 306UL
+#define RX_LEVEL_SUM_PER_MA 122UL
 #define RX_LEVEL_SUM_BUDGET \
     (((unsigned long)RX_POWER_BUDGET_MA - RX_IDLE_MA) * RX_LEVEL_SUM_PER_MA)
+
+/* RX_REPORT (`make flash-receiver REPORT=1`) prints the first pixel's
+ * received levels and the frame's estimated draw every few frames, for
+ * finding the supply's real trip point with a slow Falcon ramp. */
+#define RX_REPORT_INTERVAL 4U
 
 /* Optional fixed cap applied before the power limiter, as the old firmware
  * did.  255 (the default) passes levels through unchanged.  Override with
@@ -74,6 +78,21 @@ static __xdata unsigned char brightness[256];
 static __xdata unsigned char power_scale[256];
 static unsigned char first_report;
 static unsigned char limiting;
+#ifdef RX_REPORT
+static unsigned char report_countdown;
+
+static void report_frame(unsigned long total) {
+    serial_puts("in ");
+    serial_u16(capture[0]);
+    serial_puts(" ");
+    serial_u16(capture[2]);
+    serial_puts(" ");
+    serial_u16(capture[4]);
+    serial_puts(" est ");
+    serial_u16((unsigned int)(RX_IDLE_MA + total / RX_LEVEL_SUM_PER_MA));
+    serial_puts(" mA\r\n");
+}
+#endif
 
 /*
  * Capture an entire frame with no C code in the bit loop.
@@ -207,6 +226,9 @@ static void replay_frame(void) {
 
 void receiver_init(void) {
     first_report = 1U;
+#ifdef RX_REPORT
+    report_countdown = 1U;
+#endif
     build_brightness_table();
     serial_init();
     serial_puts("lightshow-tree Falcon receiver\r\n");
@@ -224,6 +246,12 @@ void receiver_service(void) {
     if (!capture_frame()) return;
 
     total = unpack_frame();
+#ifdef RX_REPORT
+    if (--report_countdown == 0U) {
+        report_countdown = RX_REPORT_INTERVAL;
+        report_frame(total);
+    }
+#endif
     if (total > RX_LEVEL_SUM_BUDGET) {
         limit_power(total);
         if (!limiting) {

@@ -31,6 +31,10 @@ ifneq ($(BRIGHTNESS),)
 CFLAGS += -DRX_BRIGHTNESS_LIMIT=$(BRIGHTNESS)
 BUILD_DIR := $(BUILD_DIR)-brightness$(BRIGHTNESS)
 endif
+ifneq ($(REPORT),)
+CFLAGS += -DRX_REPORT
+BUILD_DIR := $(BUILD_DIR)-report
+endif
 ifneq ($(POWER_BUDGET),)
 CFLAGS += -DRX_POWER_BUDGET_MA=$(POWER_BUDGET)
 BUILD_DIR := $(BUILD_DIR)-budget$(POWER_BUDGET)
@@ -111,7 +115,7 @@ flash-demo:
 	$(STC8PROG) -p $(PORT) -e -f build/demo/lightshow-tree.hex
 
 flash-receiver:
-	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX [SAMPLE_DELAY=n] [BRIGHTNESS=n] [POWER_BUDGET=mA]"; exit 1)
+	@test -n "$(PORT)" || (echo "Use: make flash-receiver PORT=/dev/cu.usbserial-XXXX [SAMPLE_DELAY=n] [BRIGHTNESS=n] [POWER_BUDGET=mA] [REPORT=1]"; exit 1)
 	$(MAKE) TARGET=receiver flash
 
 flash-probe:

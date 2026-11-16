@@ -29,18 +29,6 @@ __sfr __at (0xc0) P4;
 #define PAD2_MASK 0x80U     /* P3.7 */
 #define PAD1_MASK 0x02U     /* P4.1 */
 
-static void serial_u16(unsigned int value) {
-    char text[6];
-    unsigned char length = 5U;
-
-    text[5] = '\0';
-    do {
-        text[--length] = (char)('0' + (value % 10U));
-        value /= 10U;
-    } while (value != 0U);
-    serial_puts(&text[length]);
-}
-
 static void report_pin(const char *label, unsigned int high,
                        unsigned int rises) {
     serial_puts(label);

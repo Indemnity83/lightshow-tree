@@ -105,53 +105,63 @@ only steps in when a frame's estimated draw would exceed the power budget
 rating). That frame is then scaled down uniformly, so colors keep their
 ratios, just far enough to fit.
 
-This matters because the F16v4's test mode ignores port brightness. All of
-the measurements below were taken with the ports at 40%, yet the tree
-received full level 255.
+The factory pixels draw far more than the supply can provide: full white at
+level 255 would be roughly 6 A, and even at 40% port brightness (level 102)
+about 2.5 A. So bright white or pastel content at 40% is limited; saturated
+single colors are not (full red at 40% is about 0.85 A).
 
 The UART reports `power: limiting` when the limiter engages and
 `power: within budget` when it releases.
 
-| Case | Level in | Level out | Estimated 30 V draw |
+| Case (40% port brightness) | Level in | Level out | 30 V draw |
 | --- | --- | --- | --- |
-| Show content, full white at 40% port brightness | 102 | 102 | about 1.06 A |
-| Falcon test mode, full white | 255 | 120 | about 1.24 A |
+| Full red | 102 | 102 | 0.85 A, measured |
+| Full white | 102 | 48 | about 1.24 A, estimated |
+
+The F16v4's test mode applies port brightness, so test patterns behave the
+same as show content.
 
 Overrides for testing, without editing the source:
 
 ```sh
 make flash-receiver PORT=/dev/cu.usbserial-210 POWER_BUDGET=1000
+make flash-receiver PORT=/dev/cu.usbserial-210 REPORT=1
 make flash-receiver PORT=/dev/cu.usbserial-210 BRIGHTNESS=100
 ```
 
-`BRIGHTNESS` applies the old fixed cap (0–255 mapped to 0–n) before the
-limiter; the default, 255, disables it.
+`REPORT=1` prints the first pixel's received levels and the frame's
+estimated draw about four times a second. `BRIGHTNESS` applies a fixed cap
+(0–255 mapped to 0–n) before the limiter; the default, 255, disables it.
 
 ### Calibration
 
-Current measured at the 30 V output of the AC/DC supply, Falcon test mode
-(unscaled level 255) with a fixed firmware cap:
+All measurements are at the 30 V output of the AC/DC supply, with the Falcon
+sending level 102 (40% port brightness):
 
-| Firmware cap | Falcon pattern | 30 V current |
-| --- | --- | --- |
-| — | All black | 0.04 A |
-| 31 | Full red | 0.17 A |
-| 31 | Full green | 0.18 A |
-| 31 | Full blue | 0.17 A |
-| 31 | Full white | 0.40 A |
-| 100 | Full white, held several minutes | 1.03–1.05 A |
+| Firmware | Falcon pattern | Level out | 30 V current |
+| --- | --- | --- | --- |
+| — | All black | 0 | 0.04 A |
+| fixed cap 31 | Full red / green / blue | 12 | 0.17 / 0.18 / 0.17 A |
+| fixed cap 31 | Full white | 12 | 0.40 A |
+| fixed cap 100 | Full white, held several minutes | 40 | 1.03–1.05 A |
+| pass-through | Full red | 102 | 0.84–0.88 A |
+| pass-through, limiter off | White ramp | 60 | 1.52 A, stable |
+| pass-through, limiter off | White ramp | 64 | supply trips (hiccup restart) |
 
-At cap 100 the two heat-sinked parts of the factory 30 V to 5 V converter
-were warm but not hot.
+At 1.04 A the two heat-sinked parts of the factory 30 V to 5 V converter were
+warm but not hot.
 
-The limiter models draw as 0.04 A idle plus 1 A per 306,000 units of summed
-component level, from the cap-100 measurement (1,020 × 3 × 100 = 306,000
-for 1.0 A above idle). Between levels 31 and 100 the draw rose more slowly
-than linearly, so extrapolating from 100 overestimates higher levels and the
-limit errs on the safe side.
+The limiter models draw as 0.04 A idle plus 1 mA per 122 units of summed
+component level, from the level-40 white measurement (1,020 × 3 × 40 =
+122,400 for 1.0 A above idle). On the ramp it predicted 1,544 mA at level 60
+against 1.52 A measured, so it is accurate and slightly conservative. The
+supply's real limit is between 1.52 A and about 1.6 A.
 
-The deferred 45-pixel star bypasses the MCU and the limiter. At 40% it adds
-about 0.04 A; in test mode about 0.1 A.
+When the supply trips, the tree flashes and the MCU reboots about every
+0.4 s; the UART shows the startup banner repeating.
+
+The deferred 45-pixel star bypasses the MCU and the limiter. Full white at
+40% adds about 0.11 A, bringing the worst case to about 1.36 A.
 
 ## Timing tuning
 

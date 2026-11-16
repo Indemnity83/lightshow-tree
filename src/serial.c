@@ -35,6 +35,18 @@ void serial_puts(const char *text) {
     while (*text != '\0') serial_putc((unsigned char)*text++);
 }
 
+void serial_u16(unsigned int value) {
+    char text[6];
+    unsigned char length = 5U;
+
+    text[5] = '\0';
+    do {
+        text[--length] = (char)('0' + (value % 10U));
+        value /= 10U;
+    } while (value != 0U);
+    serial_puts(&text[length]);
+}
+
 void serial_pin(unsigned char pin) {
     unsigned char tens = (unsigned char)(pin / 10U);
     if (tens != 0U) serial_putc((unsigned char)('0' + tens));
